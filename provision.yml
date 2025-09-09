@@ -1,0 +1,45 @@
+  - name: Provision Puppet + Apache + HTML Enforcement
+    hosts: all
+    become: yes
+    tasks:
+      - name: Install required packages
+        apt:
+          name:
+            - apache2
+            - puppet
+          state: present
+          update_cache: yes
+  
+      - name: Ensure /var/www/html exists
+        file:
+          path: /var/www/html
+          state: directory
+          mode: '0755'
+  
+      - name: Deploy Puppet enforcement manifest
+        copy:
+          dest: /opt/enforce_webpage.pp
+          content: |
+            file { '/var/www/html/index.html':
+              ensure  => file,
+              content => @("HTML"/L),
+                <!DOCTYPE html>
+                <html>
+                  <head><title>Puppet Managed</title></head>
+                  <body>
+                    <h1>This page is managed by Puppet.</h1>
+                    <p>If someone changes this file, Puppet will fix it.</p>
+                  </body>
+                </html>
+                | HTML
+              mode    => '0644',
+            }
+  
+      - name: Apply Puppet manifest immediately
+        command: puppet apply /opt/enforce_webpage.pp
+  
+      - name: Add cron job to enforce every 5 minutes
+        cron:
+          name: "Run Puppet enforcement every 5 min"
+          job: "puppet apply /opt/enforce_webpage.pp"
+          minute: "*/1"
